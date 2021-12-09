@@ -1,0 +1,24 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: database-persistent-volume-claim
+spec:
+  # kubernetes must find the instance of storage
+  # that matches the requirements
+  # accessMode, storage capacity, etc.
+  #
+  # there is few modes available
+  # ReadWriteOnce - for single node
+  # ReadOnlyMany - multiple nodes can read
+  # ReadWriteMany - multiple nodes can read and write
+  accessModes:
+    - ReadWriteOnce
+  # requested resources to match to
+  # if not specified, will be filled with defaults
+  resources:
+    requests:
+      # storage with at least or exactly
+      # 2GB of space
+      # Gi = GB
+      storage: 2Gi
+  # storageClassOption - to pick kind of storage

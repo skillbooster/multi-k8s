@@ -1,0 +1,57 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres-deployment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      component: postgres
+  template:
+    metadata:
+      labels:
+        component: postgres
+    spec:
+      # DB has to be connected with PVC
+      # (Persistent Volume Claim)
+      # at this point
+      # this represents the claim required
+      # for a match for DB
+      # and thats where data will be stored
+      # could be local storage/cloud provider
+      # allocates the storage
+      volumes:
+        - name: postgres-storage
+          persistentVolumeClaim:
+            # same as the metadata.name from
+            # PVC config file
+            claimName: database-persistent-volume-claim
+      containers:
+        - name: postgres
+          image: postgres
+          ports:
+            - containerPort: 5432
+          # how available storage will be used
+          # by a specific container
+          # can be multiple
+          volumeMounts:
+            # has to match the claimed storage
+            # this is how it find propare volume
+            - name: postgres-storage
+              # where inside the container this
+              # storage will be available
+              # default: /var/lib/postgresql/data
+              mountPath: /var/lib/postgresql/data
+              # postgres requires additional cofig
+              # subPath
+              # this means all data at the volume
+              # inside mountPath
+              # will be stored within directory
+              # postgres
+              subPath: postgres
+          env:
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: pgpassword
+                  key: PGPASSWORD

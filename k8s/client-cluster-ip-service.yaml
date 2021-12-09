@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: client-cluster-ip-service
+spec:
+  # type of routing service
+  type: ClusterIP
+  # which Objects its going to work for
+  selector:
+    component: web
+  ports:
+    # how other Objects are going to access
+    # Objects within this ClusterIP
+    - port: 3000
+    # port that was configured in target object
+    # in this case client deployment port 3000
+      targetPort: 3000
+    # no nodePort since it is not accessible from
+    # outside world
+  

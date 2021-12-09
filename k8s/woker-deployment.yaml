@@ -1,0 +1,34 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: worker-deployment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      component: worker
+  template:
+    metadata:
+      labels:
+        component: worker
+    spec:
+      containers:
+        - name: worker
+          image: skillboost/multi-worker
+        # no other Object needs access to worker
+        # so ports and Service Object for
+        # worker section can be ommitted
+        #
+        # need config for redis app
+        # passing ENVIRONMET VARIABLES
+          env:
+            # specyfing connection to REDIS DB
+            - name: REDIS_HOST
+              # this how we access redis within
+              # Cluster
+              # in this case through
+              # ClusterIP Service Object
+              value: redis-cluster-ip-service
+            - name: REDIS_PORT
+              value: '6379'
+
