@@ -1,0 +1,78 @@
+name: Deploy React app to GKE
+
+on:
+  workflow_run:
+    workflows: Client unit tests
+    branches: [ master ]
+    types: completed
+
+env:
+  GKE_CLUSTER: ${{ secrets.GKE_CLUSTER_NAME }}
+  GKE_ZONE: ${{ secrets.GKE_PROJECT_LOCATION }}
+  GIT_SHA: ${{ github.sha }}
+  # SHA: ${ GITHUB_SHA:10 }
+
+jobs:
+  publish-to-hub:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    name: Publish to dockerhub
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Login to Docker Hub
+      uses: docker/login-action@v1
+      with:
+        username: ${{ secrets.DOCKERHUB_USERNAME }}
+        password: ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}
+    - name: Get the version
+      id: vars
+      run: echo ::set-output name=tag::$(echo $GIT_SHA)
+      # run: echo ::set-output name=tag::$(echo ${GITHUB_SHA:10})
+    - name: Running deploy script
+      run: |-
+        docker build -t skillboost/multi-client:latest -t skillboost/multi-client:$GIT_SHA -f ./client/Dockerfile ./client
+        docker build -t skillboost/multi-server:latest -t skillboost/multi-server:$GIT_SHA -f ./server/Dockerfile ./server
+        docker build -t skillboost/multi-worker:latest -t skillboost/multi-worker:$GIT_SHA -f ./worker/Dockerfile ./worker
+        docker push skillboost/multi-client:latest
+        docker push skillboost/multi-server:latest
+        docker push skillboost/multi-worker:latest
+        docker push skillboost/multi-client:$GIT_SHA
+        docker push skillboost/multi-server:$GIT_SHA
+        docker push skillboost/multi-worker:$GIT_SHA
+  setup-and-deploy:
+    needs: publish-to-hub
+    name: Setup and Deploy to k8s
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v2
+
+    # Auth GC
+    - id: auth
+      uses: google-github-actions/auth@v0.4.0
+      with:
+        credentials_json: ${{ secrets.GKE_SERVICE_ACCOUNT_JSON }}
+
+    # Setup gcloud CLI
+    - uses: google-github-actions/setup-gcloud@master
+      with:
+        # DEPRECATED service_account_key: ${{ secrets.GKE_SA_KEY }}
+        project_id: ${{ secrets.GKE_PROJECT_ID }}
+
+    # Get the GKE credentials so we can deploy to the cluster
+    - run: |-
+        gcloud container clusters get-credentials "$GKE_CLUSTER" --zone "$GKE_ZONE"
+    # Deploy sample image to the GKE cluster
+    - name: Get the version
+      id: vars
+      run: echo ::set-output name=tag::$(echo $GIT_SHA)
+      # run: echo ::set-output name=tag::$(echo ${GITHUB_SHA:10})
+    - name: Deploy
+      run: |-
+        kubectl apply -f k8s/
+        kubectl set image deployments/server-deployment server=skillboost/multi-server:$GIT_SHA
+        kubectl set image deployments/client-deployment client=skillboost/multi-client:$GIT_SHA
+        kubectl set image deployments/worker-deployment worker=skillboost/multi-worker:$GIT_SHA
+        kubectl get services -o wide

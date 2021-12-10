@@ -1,0 +1,17 @@
+name: Client unit tests
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  unit-test:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Build dockerfile
+      run: docker build -t skillboost/react-test -f ./client/Dockerfile.dev ./client
+    - name: Run tests
+      run: docker run -e CI=true skillboost/react-test npm test
