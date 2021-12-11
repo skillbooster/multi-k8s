@@ -20,6 +20,7 @@ function App() {
           >
             Changing page
           </a>
+          <p>Well well well changing something</p>
           <Link to="/">Home</Link>
           <Link to="/otherpage">Other Page</Link>
         </header>
